@@ -20,75 +20,56 @@ class DocumentMapper:
 
     def scan(self):
 
-        mapping = {}
+        files = []
 
         for file in self.root.rglob("*"):
 
             if not file.is_file():
                 continue
 
-            folder = file.parent.relative_to(self.root)
+            relative_path = file.relative_to(self.root)
 
-            extension = file.suffix.lower()
+            files.append(relative_path)
 
-            if not extension:
-                extension = "[SEM_EXTENSAO]"
-
-            mapping.setdefault(folder, set())
-            mapping[folder].add(extension)
-
-        return mapping
+        return sorted(
+            files,
+            key=lambda path: str(path).lower()
+        )
 
     def generate_text(self):
 
-        mapping = self.scan()
+        files = self.scan()
 
         lines = []
 
         root_name = self.root.name
 
-        for folder in sorted(mapping, key=str):
+        for file in files:
 
-            extensions = sorted(mapping[folder])
+            relative_path = str(file).replace("\\", "/")
 
-            formatted = []
+            path = f"{root_name}/{relative_path}"
 
-            for extension in extensions:
-
-                if extension == "[SEM_EXTENSAO]":
-
-                    formatted.append(
-                        "Arquivos.[SEM_EXTENSAO]"
-                    )
-
-                else:
-
-                    formatted.append(
-                        f"Arquivos.{extension.lstrip('.').upper()}"
-                    )
-
-            extension_text = ", ".join(formatted)
-
-            if str(folder) == ".":
-
-                path = root_name
-
-            else:
-
-                path = (
-                    f"{root_name}/"
-                    f"{str(folder).replace(chr(92), '/')}"
-                )
-
-            lines.append(
-                f"{path}/[{extension_text}]"
-            )
+            lines.append(path)
 
         return "\n".join(lines)
 
-    def save(self, output: str | Path):
+    def save(self, output: str | Path | None = None):
 
-        output = Path(output).expanduser().resolve()
+        if output is None:
+
+            downloads = Path.home() / "Downloads"
+
+            output = downloads / "document_map.txt"
+
+        else:
+
+            output = Path(output).expanduser().resolve()
+
+        output.parent.mkdir(
+            parents=True,
+            exist_ok=True
+        )
 
         output.write_text(
             self.generate_text(),
